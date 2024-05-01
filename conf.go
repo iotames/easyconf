@@ -16,7 +16,7 @@ type Conf struct {
 
 // NewConf 定义配置文件。留空默认为: .env, default.env
 func NewConf(files ...string) *Conf {
-	defaultFiles := []string{".env", "default1.env", "default2.env"}
+	defaultFiles := []string{".env", "default.env"}
 	if len(files) == 0 {
 		files = defaultFiles
 	}
@@ -62,6 +62,31 @@ func (cf Conf) DefaultString() string {
 		result = append(result, item.DefaultString())
 	}
 	return strings.Join(result, "\n\n")
+}
+
+func (cf Conf) String() string {
+	var result []string
+	for _, item := range cf.items {
+		result = append(result, item.String())
+	}
+	return strings.Join(result, "\n\n")
+}
+
+func (cf *Conf) UpdateFile(fpath string) error {
+	var f *os.File
+	var err error
+	if fpath == "" {
+		fpath = cf.files[0]
+	}
+	f, err = os.OpenFile(fpath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0777)
+	if err != nil {
+		return fmt.Errorf("open file(%s)err(%v)", fpath, err)
+	}
+	_, err = f.WriteString(cf.String())
+	if err != nil {
+		return fmt.Errorf("write file(%s)err(%v)", fpath, err)
+	}
+	return f.Close()
 }
 
 func createEnvFile(fpath, content string) error {

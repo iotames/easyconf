@@ -39,14 +39,14 @@ func (cf *Conf) Parse() error {
 			if itemk == "" || itemv == "" {
 				continue
 			}
-			fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
+			// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
 			cf.setItemVar(itemk, itemv)
 		}
 	}
 
-	for _, arg := range cf.items {
-		fmt.Printf("-----cf.item--k(%s)---v(%s)--default(%s)--\n", arg.Name, arg.GetValue(), arg.GetDefaultValue())
-	}
+	// for _, arg := range cf.items {
+	// 	fmt.Printf("-----cf.item--k(%s)---v(%s)--default(%s)--\n", arg.Name, arg.GetValue(), arg.GetDefaultValue())
+	// }
 
 	return nil
 }
