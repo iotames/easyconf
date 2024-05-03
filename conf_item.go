@@ -36,6 +36,8 @@ func (item *ConfItem) setValueVar(vv string) error {
 	case *bool:
 		if strings.EqualFold(vv, "true") {
 			*val = true
+		} else {
+			*val = false
 		}
 	case *string:
 		*val = vv

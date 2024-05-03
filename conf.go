@@ -20,6 +20,11 @@ func NewConf(files ...string) *Conf {
 	if len(files) == 0 {
 		files = defaultFiles
 	}
+	for _, ff := range files {
+		if ff == "" {
+			panic("配置文件路径不能为空")
+		}
+	}
 	return &Conf{files: files}
 }
 
@@ -90,6 +95,9 @@ func (cf *Conf) UpdateFile(fpath string) error {
 }
 
 func createEnvFile(fpath, content string) error {
+	if fpath == "" {
+		return fmt.Errorf("createEnvFile empty file")
+	}
 	f, err := os.Create(fpath)
 	if err != nil {
 		return fmt.Errorf("create env file(%s)err(%v)", fpath, err)

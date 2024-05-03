@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"regexp"
 	"strings"
 
 	"github.com/iotames/miniutils"
@@ -19,7 +20,7 @@ func (cf *Conf) Parse() error {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("Create file %s SUCCESS\n", file)
+			// fmt.Printf("Create file %s SUCCESS\n", file)
 		}
 	}
 
@@ -27,7 +28,6 @@ func (cf *Conf) Parse() error {
 	lasti := filenum - 1
 	for i := 0; i < filenum; i++ {
 		readfile := cf.files[lasti-i]
-		fmt.Println(readfile)
 		content, err = os.ReadFile(readfile)
 		if err != nil {
 			panic(err)
@@ -54,42 +54,73 @@ func (cf *Conf) Parse() error {
 var seps []string = []string{`"`, `'`}
 
 func GetConfStrByLine(line string) (itemk, itemv string) {
+	remarkk := "#"
 	v := strings.TrimSpace(line)
-	if strings.Index(v, "#") == 0 {
+	if strings.Index(v, remarkk) == 0 {
+		// 忽略以注释符 # 开头的一整行
 		return
 	}
-	if strings.Contains(v, "=") {
-		itemsplit := strings.Split(v, "=")
-		itemk = strings.TrimSpace(itemsplit[0])
-		if strings.Contains(itemk, "#") {
+	eqIndex := strings.Index(v, "=")
+	if eqIndex > 0 {
+		// 等号 = 左边为配置名
+		itemk = strings.TrimSpace(v[:eqIndex])
+		// 等号 = 右边为配置值
+		itemv = strings.TrimSpace(v[eqIndex+1:])
+
+		// 忽略含注释号 # 的配置名
+		if strings.Contains(itemk, remarkk) {
 			itemk = ""
 			return
 		}
-		itemv = strings.TrimSpace(itemsplit[1])
-		remarkk := "#"
-		remarkIndex := strings.Index(itemv, remarkk)
-		if remarkIndex > 0 {
-			vsplit := strings.Split(itemv, remarkk)
-			val1 := strings.TrimSpace(vsplit[0])
-			var val1ok string
-			for _, sep := range seps {
-				if strings.Index(val1, sep) == 0 && val1[len(val1)-1] == sep[0] {
-					val1ok = val1[1 : len(val1)-1]
-					break
+
+		// 配置值使用双引号 " 或单引号 ' 包裹，则提取出来。
+		for _, sep := range seps {
+			if strings.Index(itemv, sep) == 0 && itemv[len(itemv)-1] == sep[0] {
+				itemv = itemv[1 : len(itemv)-1]
+
+				// 解决不适配 name="value" # remark="a=b"
+				if strings.Contains(itemv, remarkk) {
+					re := regexp.MustCompile(fmt.Sprintf(`(\%s( |\t|)*%s)`, sep, remarkk))
+					substr := re.FindString(itemv)
+					if substr != "" {
+						itemv = strings.Split(itemv, substr)[0]
+					}
 				}
-			}
-			if val1ok != "" {
-				itemv = val1ok
+
 				return
 			}
 		}
 
-		for _, sep := range seps {
-			if strings.Index(itemv, sep) == 0 && itemv[len(itemv)-1] == sep[0] {
-				itemv = itemv[1 : len(itemv)-1]
-				break
+		remarkIndex := strings.Index(itemv, remarkk)
+
+		// 忽略以注释符 # 开头的配置值
+		if remarkIndex == 0 {
+			itemv = ""
+			return
+		}
+
+		if remarkIndex > 0 {
+			// 配置值使用双引号 " 或单引号 ' 包裹，则提取出来。
+			for _, sep := range seps {
+				lastSepIndex := strings.LastIndex(itemv, sep)
+
+				// 适配 name="hello#word", name="value" # remark
+				if strings.Index(itemv, sep) == 0 && lastSepIndex > 0 {
+					itemv = itemv[1:lastSepIndex]
+					// 解决不适配 name="value" # remark="a=b"
+					if strings.Contains(itemv, remarkk) {
+						re := regexp.MustCompile(fmt.Sprintf(`(\%s( |\t)*%s)`, sep, remarkk))
+						substr := re.FindString(itemv)
+						if substr != "" {
+							itemv = strings.Split(itemv, substr)[0]
+						}
+					}
+					return
+				}
 			}
+			itemv = strings.TrimSpace(itemv[:remarkIndex])
 		}
 	}
+
 	return
 }
