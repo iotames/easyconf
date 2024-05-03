@@ -51,6 +51,8 @@ func (cf *Conf) Parse() error {
 	return nil
 }
 
+var seps []string = []string{`"`, `'`}
+
 func GetConfStrByLine(line string) (itemk, itemv string) {
 	v := strings.TrimSpace(line)
 	if strings.Index(v, "#") == 0 {
@@ -64,11 +66,29 @@ func GetConfStrByLine(line string) (itemk, itemv string) {
 			return
 		}
 		itemv = strings.TrimSpace(itemsplit[1])
-		if strings.Index(itemv, `"`) == 0 && itemv[len(itemv)-1] == '"' {
-			itemv = itemv[1 : len(itemv)-1]
+		remarkk := "#"
+		remarkIndex := strings.Index(itemv, remarkk)
+		if remarkIndex > 0 {
+			vsplit := strings.Split(itemv, remarkk)
+			val1 := strings.TrimSpace(vsplit[0])
+			var val1ok string
+			for _, sep := range seps {
+				if strings.Index(val1, sep) == 0 && val1[len(val1)-1] == sep[0] {
+					val1ok = val1[1 : len(val1)-1]
+					break
+				}
+			}
+			if val1ok != "" {
+				itemv = val1ok
+				return
+			}
 		}
-		if strings.Index(itemv, `'`) == 0 && itemv[len(itemv)-1] == '\'' {
-			itemv = itemv[1 : len(itemv)-1]
+
+		for _, sep := range seps {
+			if strings.Index(itemv, sep) == 0 && itemv[len(itemv)-1] == sep[0] {
+				itemv = itemv[1 : len(itemv)-1]
+				break
+			}
 		}
 	}
 	return
