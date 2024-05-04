@@ -29,21 +29,31 @@ func NewConf(files ...string) *Conf {
 }
 
 func (cf *Conf) StringVar(pval *string, name string, defval, title string, usage ...string) {
+	*pval = defval
 	item := newConfItem(pval, name, defval, title, usage...)
 	cf.items = append(cf.items, item)
 }
 
 func (cf *Conf) BoolVar(pval *bool, name string, defval bool, title string, usage ...string) {
+	*pval = defval
 	item := newConfItem(pval, name, defval, title, usage...)
 	cf.items = append(cf.items, item)
 }
 
 func (cf *Conf) IntVar(pval *int, name string, defval int, title string, usage ...string) {
+	*pval = defval
 	item := newConfItem(pval, name, defval, title, usage...)
 	cf.items = append(cf.items, item)
 }
 
 func (cf *Conf) StringListVar(pval *[]string, name string, defval []string, title string, usage ...string) {
+	*pval = defval
+	item := newConfItem(pval, name, defval, title, usage...)
+	cf.items = append(cf.items, item)
+}
+
+func (cf *Conf) IntListVar(pval *[]int, name string, defval []int, title string, usage ...string) {
+	*pval = defval
 	item := newConfItem(pval, name, defval, title, usage...)
 	cf.items = append(cf.items, item)
 }

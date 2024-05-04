@@ -31,8 +31,29 @@ func (item *ConfItem) setValueVar(vv string) error {
 	switch val := v.(type) {
 	case *int:
 		*val, err = strconv.Atoi(vv)
+		if err != nil {
+			*val = item.DefaultValue.(int)
+		}
+	case *[]int:
+		vsplit := strings.Split(vv, ",")
+		var vlist []int
+		var vint int
+		for _, v1 := range vsplit {
+			vint, err = strconv.Atoi(strings.TrimSpace(v1))
+			if err != nil {
+				break
+			}
+			vlist = append(vlist, vint)
+		}
+		*val = vlist
+		if err != nil {
+			*val = item.DefaultValue.([]int)
+		}
 	case *float64:
 		*val, err = strconv.ParseFloat(vv, 64)
+		if err != nil {
+			*val = item.DefaultValue.(float64)
+		}
 	case *bool:
 		if strings.EqualFold(vv, "true") {
 			*val = true
@@ -111,6 +132,18 @@ func anyToString(v any, k string) string {
 		result = strings.Join(*val, ",")
 	case []string:
 		result = strings.Join(val, ",")
+	case []int:
+		var vvv []string
+		for _, v1 := range val {
+			vvv = append(vvv, fmt.Sprintf("%d", v1))
+		}
+		result = strings.Join(vvv, ",")
+	case *[]int:
+		var vvv []string
+		for _, v1 := range *val {
+			vvv = append(vvv, fmt.Sprintf("%d", v1))
+		}
+		result = strings.Join(vvv, ",")
 	default:
 		panic(fmt.Errorf("配置项%s的值为不支持的变量类型:%t", k, v))
 	}
