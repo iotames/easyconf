@@ -7,7 +7,61 @@
 通过简单的方法读取和修改配置值。
 
 
-## 使用示例
+## 新建配置
+
+
+导入 `easyconf` 工具包:
+
+```
+import (
+	"github.com/iotames/easyconf"
+)
+```
+
+可初始化1个或多个配置文件，优先级从左到右。默认: `.env`, `default.env`
+
+```
+// 生成 .env, default.env 两份配置文件。
+cf := easyconf.NewConf()
+
+// 生成一份 myconf.env 自定义配置文件。
+cf = easyconf.NewConf("myconf.env")
+
+// 生成多份配置文件
+cf = easyconf.NewConf(".env", "common.env", "default.env")
+```
+
+使用 `Parse()` 方法读取文件中的配置值。若文件不存在，则创建。
+
+```
+var DbHost string
+var DbPort int
+cf := easyconf.NewConf()
+cf.StringVar(&DbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
+cf.IntVar(&DbPort, "DB_PORT", 3306, "数据库地址端口号")
+cf.Parse() // 默认创建 .env, default.env 两份文件。
+```
+
+## 更新配置
+
+使用 `UpdateFile()` 方法更新配置。需要指定配置文件路径，留空则默认更新第一个。
+
+```
+cf := easyconf.NewConf(".env")
+var DbHost string
+cf.StringVar(&DbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
+cf.Parse()
+
+DbHost = "192.168.1.6"
+
+// 可指定一个更新的配置文件。留空则默认更新第一个。
+err := cf.UpdateFile("")
+if err != nil {
+	panic(err)
+}
+```
+
+## 完整示例
 
 ```
 package main
