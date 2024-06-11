@@ -30,37 +30,49 @@ func NewConf(files ...string) *Conf {
 
 func (cf *Conf) StringVar(pval *string, name string, defval, title string, usage ...string) {
 	*pval = defval
-	item := newConfItem(pval, name, defval, title, usage...)
-	cf.items = append(cf.items, item)
+	cf.addItem(pval, name, defval, title, usage...)
 }
 
 func (cf *Conf) BoolVar(pval *bool, name string, defval bool, title string, usage ...string) {
 	*pval = defval
-	item := newConfItem(pval, name, defval, title, usage...)
-	cf.items = append(cf.items, item)
+	cf.addItem(pval, name, defval, title, usage...)
 }
 
 func (cf *Conf) IntVar(pval *int, name string, defval int, title string, usage ...string) {
 	*pval = defval
-	item := newConfItem(pval, name, defval, title, usage...)
-	cf.items = append(cf.items, item)
+	cf.addItem(pval, name, defval, title, usage...)
 }
 
 func (cf *Conf) StringListVar(pval *[]string, name string, defval []string, title string, usage ...string) {
 	*pval = defval
-	item := newConfItem(pval, name, defval, title, usage...)
-	cf.items = append(cf.items, item)
+	cf.addItem(pval, name, defval, title, usage...)
 }
 
 func (cf *Conf) IntListVar(pval *[]int, name string, defval []int, title string, usage ...string) {
 	*pval = defval
-	item := newConfItem(pval, name, defval, title, usage...)
-	cf.items = append(cf.items, item)
+	cf.addItem(pval, name, defval, title, usage...)
+}
+
+func (cf *Conf) Float64Var(pval *float64, name string, defval float64, title string, usage ...string) {
+	*pval = defval
+	cf.addItem(pval, name, defval, title, usage...)
+}
+
+func (cf *Conf) AddComment(title string, comment ...string) {
+	cf.addItem(nil, "", nil, title, comment...)
+}
+
+func (cf *Conf) addItem(pval any, name string, defval any, title string, usage ...string) {
+	cf.items = append(cf.items, newConfItem(pval, name, defval, title, usage...))
 }
 
 func (cf *Conf) setItemVar(k, v string) error {
 	var err error
 	for _, arg := range cf.items {
+		if arg.Name == "" {
+			// 注释语句 Name 为空字符
+			continue
+		}
 		if arg.Name == k {
 			err1 := arg.setValueVar(v)
 			if err1 != nil {

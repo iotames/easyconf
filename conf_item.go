@@ -7,23 +7,12 @@ import (
 	"strings"
 )
 
-// type IConfItem interface {
-// 	// GetName() string
-// 	// GetTitle() string
-// 	GetValue() string
-// 	GetValueAny() any
-// 	// GetDefaultValue() string
-// }
-
 type ConfItem struct {
 	Name, Title         string
 	Value, DefaultValue any
 	Usage               []string
 }
 
-//	func (item ConfItem) GetValueAny() any {
-//		return item.Value
-//	}
 func (item *ConfItem) setValueVar(vv string) error {
 	var err error
 	v := item.Value
@@ -76,7 +65,24 @@ func (item *ConfItem) setValueVar(vv string) error {
 }
 
 func (item ConfItem) GetValue() string {
-	return anyToString(item.Value, item.Name)
+	switch val := item.Value.(type) {
+	case nil:
+		panic(fmt.Errorf("配置项%s的指针不能为nil", item.Name))
+	case *int:
+		return anyToString(*val, item.Name)
+	case *float64:
+		return anyToString(*val, item.Name)
+	case *bool:
+		return anyToString(*val, item.Name)
+	case *string:
+		return anyToString(*val, item.Name)
+	case *[]string:
+		return anyToString(*val, item.Name)
+	case *[]int:
+		return anyToString(*val, item.Name)
+	default:
+		panic(fmt.Errorf("配置项%s的值为不支持的变量类型:%t", item.Name, item.Value))
+	}
 }
 
 func (item ConfItem) GetDefaultValue() string {
@@ -85,16 +91,38 @@ func (item ConfItem) GetDefaultValue() string {
 
 func (item ConfItem) toString(isDefaultValue bool) string {
 	var result []string
-	result = append(result, fmt.Sprintf("# %s. The default value is: %s", item.Title, item.GetDefaultValue()))
+	titleline := ""
+	if item.Title != "" {
+		titleline = fmt.Sprintf("# %s.", item.Title)
+	}
+	if item.DefaultValue != nil {
+		defval := ""
+		switch item.DefaultValue.(type) {
+		case string:
+			defval = fmt.Sprintf(`"%s"`, item.GetDefaultValue())
+		default:
+			defval = item.GetDefaultValue()
+		}
+		titleline += fmt.Sprintf(` The default value is: %s`, defval)
+	}
+	if titleline != "" {
+		result = append(result, titleline)
+	}
 	if len(item.Usage) > 0 {
 		for _, v := range item.Usage {
 			result = append(result, fmt.Sprintf("# %s", v))
 		}
 	}
-	if isDefaultValue {
-		result = append(result, fmt.Sprintf("%s = %s", item.Name, item.GetDefaultValue()))
-	} else {
-		result = append(result, fmt.Sprintf("%s = %s", item.Name, item.GetValue()))
+	var strline string
+	if item.Value != nil {
+		if isDefaultValue {
+			strline = item.GetDefaultValue()
+		} else {
+			strline = item.GetValue()
+		}
+	}
+	if strline != "" {
+		result = append(result, fmt.Sprintf("%s = %s", item.Name, strline))
 	}
 	return strings.Join(result, "\n")
 }
@@ -111,25 +139,15 @@ func anyToString(v any, k string) string {
 	result := ""
 	switch val := v.(type) {
 	case nil:
-		panic(fmt.Errorf("配置项%s不能为nil", k))
-	case int, int64:
+		panic(fmt.Errorf("配置项%s的值不能为nil", k))
+	case int:
 		result = fmt.Sprintf("%d", val)
-	case *int:
-		result = fmt.Sprintf("%d", *val)
-	case *float64:
-		result = fmt.Sprintf("%.2f", *val)
 	case float64:
-		result = fmt.Sprintf("%.2f", val)
+		result = fmt.Sprintf("%.6f", val)
 	case bool:
 		result = fmt.Sprintf("%t", val)
-	case *bool:
-		result = fmt.Sprintf("%t", *val)
 	case string:
 		result = val
-	case *string:
-		result = *val
-	case *[]string:
-		result = strings.Join(*val, ",")
 	case []string:
 		result = strings.Join(val, ",")
 	case []int:
@@ -138,14 +156,8 @@ func anyToString(v any, k string) string {
 			vvv = append(vvv, fmt.Sprintf("%d", v1))
 		}
 		result = strings.Join(vvv, ",")
-	case *[]int:
-		var vvv []string
-		for _, v1 := range *val {
-			vvv = append(vvv, fmt.Sprintf("%d", v1))
-		}
-		result = strings.Join(vvv, ",")
 	default:
-		panic(fmt.Errorf("配置项%s的值为不支持的变量类型:%t", k, v))
+		panic(fmt.Errorf("配置项%s的值为不支持的变量类型:%T", k, v))
 	}
 	return result
 }
