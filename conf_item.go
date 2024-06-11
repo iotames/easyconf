@@ -91,38 +91,38 @@ func (item ConfItem) GetDefaultValue() string {
 
 func (item ConfItem) toString(isDefaultValue bool) string {
 	var result []string
-	titleline := ""
+	var defval, realval string
 	if item.Title != "" {
-		titleline = fmt.Sprintf("# %s.", item.Title)
+		// ADD COMMENT: Title
+		result = append(result, fmt.Sprintf("# %s", item.Title))
 	}
-	if item.DefaultValue != nil {
-		defval := ""
+	if item.DefaultValue != nil && item.Value != nil {
 		switch item.DefaultValue.(type) {
 		case string:
 			defval = fmt.Sprintf(`"%s"`, item.GetDefaultValue())
+			realval = fmt.Sprintf(`"%s"`, item.GetValue())
 		default:
 			defval = item.GetDefaultValue()
+			realval = item.GetValue()
 		}
-		titleline += fmt.Sprintf(` The default value is: %s`, defval)
-	}
-	if titleline != "" {
-		result = append(result, titleline)
+		// ADD COMMENT: default value
+		result = append(result, fmt.Sprintf(`# The default value is: %s`, defval))
 	}
 	if len(item.Usage) > 0 {
 		for _, v := range item.Usage {
+			// ADD COMMENT: usage
 			result = append(result, fmt.Sprintf("# %s", v))
 		}
 	}
-	var strline string
 	if item.Value != nil {
+		var val string
 		if isDefaultValue {
-			strline = item.GetDefaultValue()
+			val = defval
 		} else {
-			strline = item.GetValue()
+			val = realval
 		}
-	}
-	if strline != "" {
-		result = append(result, fmt.Sprintf("%s = %s", item.Name, strline))
+		// ADD name and value pair
+		result = append(result, fmt.Sprintf(`%s = %s`, item.Name, val))
 	}
 	return strings.Join(result, "\n")
 }
