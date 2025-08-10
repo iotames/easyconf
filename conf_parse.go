@@ -10,6 +10,7 @@ import (
 	"github.com/iotames/miniutils"
 )
 
+// Parse 从配置文件和系统环境变量解析配置
 func (cf *Conf) Parse() error {
 	var err error
 	var content []byte
@@ -23,6 +24,13 @@ func (cf *Conf) Parse() error {
 			// fmt.Printf("Create file %s SUCCESS\n", file)
 		}
 	}
+
+	// 这边从系统环境变量获取配置
+	err = cf.SetItemVarByEnv()
+	if err != nil {
+		return err
+	}
+	// 下面再从配置文件获取配置
 
 	filenum := len(cf.files)
 	lasti := filenum - 1
@@ -40,6 +48,7 @@ func (cf *Conf) Parse() error {
 				continue
 			}
 			// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
+			// 配置文件上的配置会覆盖环境变量的同名配置
 			cf.setItemVar(itemk, itemv)
 		}
 	}
