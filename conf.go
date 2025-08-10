@@ -10,8 +10,9 @@ import (
 )
 
 type Conf struct {
-	files []string
-	items []*ConfItem
+	disableEnvFile bool
+	files          []string
+	items          []*ConfItem
 }
 
 // NewConf 定义配置文件。留空默认为: .env, default.env

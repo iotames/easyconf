@@ -65,3 +65,8 @@ func (cf *Conf) UpdateFile(fpath string) error {
 	}
 	return f.Close()
 }
+
+// DisableEnvFile 彻底禁用环境变量配置文件。只从系统环境变量获取。
+func (cf *Conf) DisableEnvFile() {
+	cf.disableEnvFile = true
+}

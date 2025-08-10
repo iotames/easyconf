@@ -15,6 +15,7 @@ const DEFAULT_DB_HOST = "127.0.0.1"
 const DEFAULT_DB_PORT = 3306
 
 var envfile string
+var disableenvfile bool
 
 var cf *easyconf.Conf
 
@@ -41,8 +42,12 @@ func main() {
 
 func init() {
 	flag.StringVar(&envfile, "envfile", "", "配置文件路径")
+	flag.BoolVar(&disableenvfile, "disableenvfile", false, "禁用环境变量配置文件")
 	flag.Parse()
 	cf = easyconf.NewConf(getEnvFile())
+	if disableenvfile {
+		cf.DisableEnvFile()
+	}
 	cf.StringVar(&DbHost, "DB_HOST", DEFAULT_DB_HOST, "数据库主机地址")
 	cf.IntVar(&DbPort, "DB_PORT", DEFAULT_DB_PORT, "数据库地址端口号")
 	cf.BoolVar(&DbEnable, "DB_ENABLE", false, "是否启用数据库")

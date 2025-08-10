@@ -15,6 +15,15 @@ func (cf *Conf) Parse() error {
 	var err error
 	var content []byte
 
+	// 这边从系统环境变量获取配置
+	cf.SetItemVarByEnv()
+	// 下面再从配置文件获取配置
+
+	if cf.disableEnvFile {
+		// 如果开启了彻底禁用环境变量文件的选项。则不再进行后续操作。
+		return nil
+	}
+
 	for _, file := range cf.files {
 		if !miniutils.IsPathExists(file) {
 			err = createEnvFile(file, cf.DefaultString())
@@ -24,13 +33,6 @@ func (cf *Conf) Parse() error {
 			// fmt.Printf("Create file %s SUCCESS\n", file)
 		}
 	}
-
-	// 这边从系统环境变量获取配置
-	err = cf.SetItemVarByEnv()
-	if err != nil {
-		return err
-	}
-	// 下面再从配置文件获取配置
 
 	filenum := len(cf.files)
 	lasti := filenum - 1
