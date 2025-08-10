@@ -15,15 +15,6 @@ func (cf *Conf) Parse() error {
 	var err error
 	var content []byte
 
-	// 这边从系统环境变量获取配置
-	cf.SetItemVarByEnv()
-	// 下面再从配置文件获取配置
-
-	if cf.disableEnvFile {
-		// 如果开启了彻底禁用环境变量文件的选项。则不再进行后续操作。
-		return nil
-	}
-
 	for _, file := range cf.files {
 		if !miniutils.IsPathExists(file) {
 			err = createEnvFile(file, cf.DefaultString())
@@ -50,16 +41,12 @@ func (cf *Conf) Parse() error {
 				continue
 			}
 			// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
-			// 配置文件上的配置会覆盖环境变量的同名配置
 			cf.setItemVar(itemk, itemv)
 		}
 	}
 
-	// for _, arg := range cf.items {
-	// 	fmt.Printf("-----cf.item--k(%s)---v(%s)--default(%s)--\n", arg.Name, arg.GetValue(), arg.GetDefaultValue())
-	// }
-
-	return nil
+	// 从系统环境变量获取配置，配置文件上的同名配置会被覆盖
+	return cf.SetItemVarByEnv()
 }
 
 var seps []string = []string{`"`, `'`}
