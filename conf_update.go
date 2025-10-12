@@ -22,11 +22,13 @@ func (cf *Conf) setItemVar(k, v string) error {
 	if k == "" {
 		return fmt.Errorf("配置项的键不能为空")
 	}
-	for _, arg := range cf.items {
-		if arg.Name == k {
-			err1 := arg.setValueVar(v)
+	for _, item := range cf.items {
+		if item.Name == k {
+			err1 := item.setValueVar(v)
 			if err1 != nil {
 				err = err1
+			} else {
+				item.ValueStr = v
 			}
 		}
 	}
@@ -35,23 +37,43 @@ func (cf *Conf) setItemVar(k, v string) error {
 
 // SetValuesByCmdArgs 从命令行参数获取配置。优先级高
 // 允许设置值为空字符串。
-// TODO 对于bool类型的参数解析可能会有BUG
 func (cf *Conf) SetValuesByCmdArgs() []error {
+	var errs []error
 	for _, item := range cf.items {
 		// 注释语句 Name 为空字符
 		if item.Name != "" {
-			v, ok := cf.kvmp[item.Name]
-			if !ok || v == nil {
-				cf.kvmp[item.Name] = new(string)
+			vstr := item.ValueStr
+			v := item.Value
+			switch val := v.(type) {
+			case *int:
+				flag.IntVar(val, item.Name, *val, strings.Join(item.Usage, ";"))
+			case *float64:
+				flag.Float64Var(val, item.Name, *val, strings.Join(item.Usage, ";"))
+			case *bool:
+				flag.BoolVar(val, item.Name, *val, strings.Join(item.Usage, ";"))
+			case *string:
+				flag.StringVar(val, item.Name, *val, strings.Join(item.Usage, ";"))
+			case *[]string:
+				flag.StringVar(&item.ValueStr, item.Name, vstr, strings.Join(item.Usage, ";"))
+			case *[]int:
+				flag.StringVar(&item.ValueStr, item.Name, vstr, strings.Join(item.Usage, ";"))
+			default:
+				errs = append(errs, fmt.Errorf("设置项%s配置值%s不支持变量类型(%t)", item.Name, vstr, v))
 			}
-			flag.StringVar(cf.kvmp[item.Name], item.Name, *cf.kvmp[item.Name], strings.Join(item.Usage, ";"))
 		}
 	}
 	flag.Parse()
-	var errs []error
-	for k, v := range cf.kvmp {
-		if err := cf.setItemVar(k, *v); err != nil {
-			errs = append(errs, fmt.Errorf("设置项%s配置值%s设置失败:%v", k, *v, err))
+	for _, item := range cf.items {
+		// 注释语句 Name 为空字符
+		if item.Name != "" {
+			v := item.Value
+			switch val := v.(type) {
+			case *[]string:
+				parseStringList(val, item.ValueStr)
+			case *[]int:
+				parseIntList(val, item.ValueStr, *val)
+				fmt.Printf("--k(%s)--vstr(%s)-------\n", item.Name, item.ValueStr)
+			}
 		}
 	}
 	return errs
@@ -68,10 +90,11 @@ func (cf *Conf) SetValuesByEnv() error {
 		}
 		v := os.Getenv(item.Name)
 		if v != "" {
-			cf.kvmp[item.Name] = &v
 			err1 := item.setValueVar(v)
 			if err1 != nil {
 				err = err1
+			} else {
+				item.ValueStr = v
 			}
 		}
 	}
@@ -94,7 +117,6 @@ func (cf *Conf) SetValuesByEnvFile(envfile string) {
 			continue
 		}
 		// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
-		cf.kvmp[itemk] = &itemv
 		cf.setItemVar(itemk, itemv)
 	}
 }

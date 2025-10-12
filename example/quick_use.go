@@ -26,7 +26,7 @@ var AgeRange []int
 
 func main() {
 	fmt.Printf("-------可修改envfile(%s)文件中配置项的默认值，验证修改值是否更新-----\n", getEnvFile())
-	fmt.Printf("-----DbHost(%s)--DbPort(%d)--Dbnable(%t)--\n", DbHost, DbPort, DbEnable)
+	fmt.Printf("-----DbHost(%s)--DbPort(%d)--DbEnable(%t)--\n", DbHost, DbPort, DbEnable)
 	fmt.Printf("-----AllowIPs(%+v)--AgeRange(%v)--\n", AllowIPs, AgeRange)
 	if DbHost == DEFAULT_DB_HOST {
 		DbHost = "192.168.1.19"
@@ -41,14 +41,17 @@ func main() {
 
 func init() {
 	flag.StringVar(&envfile, "envfile", "", "配置文件路径")
-	flag.Parse()
+	// flag.Parse()
 	cf = easyconf.NewConf(getEnvFile())
 	cf.StringVar(&DbHost, "DB_HOST", DEFAULT_DB_HOST, "数据库主机地址")
 	cf.IntVar(&DbPort, "DB_PORT", DEFAULT_DB_PORT, "数据库地址端口号")
 	cf.BoolVar(&DbEnable, "DB_ENABLE", false, "是否启用数据库")
 	cf.StringListVar(&AllowIPs, "ALLOW_IP_LIST", []string{"192.168.1.6", "192.168.2.8"}, "允许访问的IP列表，每个IP用逗号(,)隔开。")
 	cf.IntListVar(&AgeRange, "AGE_RANGE", []int{3, 6}, "年龄范围", "填写2个正整数,中间用逗号,隔开")
-	cf.Parse(false)
+	err := cf.Parse(true)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func getEnvFile() string {

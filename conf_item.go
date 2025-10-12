@@ -12,9 +12,38 @@ import (
 type ConfItem struct {
 	Name         string // 配置项键名。键名为空字符串，则该项的值可能为注释。
 	Title        string
-	Value        any // 配置项的值，类型为指针，引用传递。
-	DefaultValue any // 配置项的默认值，值传递。
+	ValueStr     string // 配置项的字符串原始值。对于只有字符串类型的环境变量很有用。
+	Value        any    // 配置项的值，类型为指针，引用传递。
+	DefaultValue any    // 配置项的默认值，值传递。
 	Usage        []string
+}
+
+func parseIntList(val *[]int, vv string, defaultVal []int) error {
+	var err error
+	vsplit := strings.Split(vv, ",")
+	var vlist []int
+	var vint int
+	for _, v1 := range vsplit {
+		vint, err = strconv.Atoi(strings.TrimSpace(v1))
+		if err != nil {
+			break
+		}
+		vlist = append(vlist, vint)
+	}
+	*val = vlist
+	if err != nil {
+		*val = defaultVal
+	}
+	return err
+}
+
+func parseStringList(val *[]string, vv string) {
+	vsplit := strings.Split(vv, ",")
+	var vlist []string
+	for _, v1 := range vsplit {
+		vlist = append(vlist, strings.TrimSpace(v1))
+	}
+	*val = vlist
 }
 
 func (item *ConfItem) setValueVar(vv string) error {
@@ -28,20 +57,7 @@ func (item *ConfItem) setValueVar(vv string) error {
 			*val = item.DefaultValue.(int)
 		}
 	case *[]int:
-		vsplit := strings.Split(vv, ",")
-		var vlist []int
-		var vint int
-		for _, v1 := range vsplit {
-			vint, err = strconv.Atoi(strings.TrimSpace(v1))
-			if err != nil {
-				break
-			}
-			vlist = append(vlist, vint)
-		}
-		*val = vlist
-		if err != nil {
-			*val = item.DefaultValue.([]int)
-		}
+		err = parseIntList(val, vv, item.DefaultValue.([]int))
 	case *float64:
 		*val, err = strconv.ParseFloat(vv, 64)
 		if err != nil {
@@ -56,12 +72,7 @@ func (item *ConfItem) setValueVar(vv string) error {
 	case *string:
 		*val = vv
 	case *[]string:
-		vsplit := strings.Split(vv, ",")
-		var vlist []string
-		for _, v1 := range vsplit {
-			vlist = append(vlist, strings.TrimSpace(v1))
-		}
-		*val = vlist
+		parseStringList(val, vv)
 	default:
 		err = fmt.Errorf("配置项%s的值为不支持的变量类型(%t)", item.Name, v)
 	}

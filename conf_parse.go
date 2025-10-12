@@ -13,7 +13,6 @@ import (
 // 其他地方还有调用flag.Parse()的代码，应删除，由本方法统一调用。
 func (cf *Conf) Parse(flagParse bool) error {
 	var err error
-	cf.kvmp = make(map[string]*string, len(cf.items))
 	for _, file := range cf.files {
 		if !miniutils.IsPathExists(file) {
 			err = createEnvFile(file, cf.DefaultString())

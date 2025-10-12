@@ -11,7 +11,6 @@ import (
 
 type Conf struct {
 	files []string
-	kvmp  map[string]*string
 	items []*ConfItem
 }
 
