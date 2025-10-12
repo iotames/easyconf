@@ -2,8 +2,6 @@ package easyconf
 
 import (
 	"fmt"
-	"os"
-
 	"regexp"
 	"strings"
 
@@ -13,8 +11,7 @@ import (
 // Parse 从配置文件和系统环境变量解析配置
 func (cf *Conf) Parse() error {
 	var err error
-	var content []byte
-
+	cf.kvmp = make(map[string]*string, len(cf.items))
 	for _, file := range cf.files {
 		if !miniutils.IsPathExists(file) {
 			err = createEnvFile(file, cf.DefaultString())
@@ -29,24 +26,28 @@ func (cf *Conf) Parse() error {
 	lasti := filenum - 1
 	for i := 0; i < filenum; i++ {
 		readfile := cf.files[lasti-i]
-		content, err = os.ReadFile(readfile)
-		if err != nil {
-			panic(err)
-		}
-		contstr := string(content)
-		lines := strings.Split(contstr, "\n")
-		for _, line := range lines {
-			itemk, itemv := GetConfStrByLine(line)
-			if itemk == "" || itemv == "" {
-				continue
-			}
-			// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
-			cf.setItemVar(itemk, itemv)
-		}
+		// 按顺序，后面的文件配置，覆盖前面的文件配置
+		cf.SetValuesByEnvFile(readfile)
 	}
 
 	// 从系统环境变量获取配置，配置文件上的同名配置会被覆盖
-	return cf.SetItemVarByEnv()
+	err = cf.SetValuesByEnv()
+	if err != nil {
+		return err
+	}
+
+	// 命令行参数优先级最高。
+	errs := cf.SetValuesByCmdArgs()
+	var errstr []string
+	for _, err := range errs {
+		if err != nil {
+			errstr = append(errstr, err.Error())
+		}
+	}
+	if len(errstr) > 0 {
+		return fmt.Errorf("命令行参数解析错误:%s", strings.Join(errstr, ";"))
+	}
+	return nil
 }
 
 var seps []string = []string{`"`, `'`}

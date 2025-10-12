@@ -7,10 +7,14 @@ import (
 	"strings"
 )
 
+// ConfItem 配置项信息。
+// 包含配置名，标题，配置值，默认值，使用说明。
 type ConfItem struct {
-	Name, Title         string
-	Value, DefaultValue any
-	Usage               []string
+	Name         string // 配置项键名。键名为空字符串，则该项的值可能为注释。
+	Title        string
+	Value        any // 配置项的值，类型为指针，引用传递。
+	DefaultValue any // 配置项的默认值，值传递。
+	Usage        []string
 }
 
 func (item *ConfItem) setValueVar(vv string) error {
