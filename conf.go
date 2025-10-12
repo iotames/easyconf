@@ -16,6 +16,7 @@ type Conf struct {
 }
 
 // NewConf 定义配置文件。留空默认为: .env, default.env
+// 配置文件列表，后面的配置文件会覆盖前面文件的配置值。越后面的文件，优先级越高。
 func NewConf(files ...string) *Conf {
 	defaultFiles := []string{".env", "default.env"}
 	if len(files) == 0 {

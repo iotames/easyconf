@@ -68,7 +68,7 @@ func TestConf(t *testing.T) {
 	cf.IntListVar(&intlist, "INTLIST", DEFAULT_INTLIST, "整数列表")
 	cf.Float64Var(&costDays, "COST_DAYS", DEFAULT_COST_DAYS, "耗时天数", "完成工期花费的时间/天")
 	webport = 8888
-	err := cf.Parse()
+	err := cf.Parse(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestConf(t *testing.T) {
 	cf.IntListVar(&intlist, "INTLIST", DEFAULT_INTLIST, "整数列表")
 	cf.Float64Var(&costDays, "COST_DAYS", DEFAULT_COST_DAYS, "耗时天数", "完成工期花费的时间/天")
 	webport = 8888
-	err = cf.Parse()
+	err = cf.Parse(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestConf(t *testing.T) {
 	cf.IntVar(&webport, "WEB_PORT", DEFAULT_WEBPORT, "web服务器端口")
 	cf.StringListVar(&domains, "DOMAINS", DEFAULT_DOMAINS, "允许的域名列表", domainUsage...)
 	cf.IntListVar(&intlist, "INTLIST", DEFAULT_INTLIST, "整数列表")
-	err = cf.Parse()
+	err = cf.Parse(false)
 	if err != nil {
 		t.Fatal(err)
 	}

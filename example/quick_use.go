@@ -48,7 +48,7 @@ func init() {
 	cf.BoolVar(&DbEnable, "DB_ENABLE", false, "是否启用数据库")
 	cf.StringListVar(&AllowIPs, "ALLOW_IP_LIST", []string{"192.168.1.6", "192.168.2.8"}, "允许访问的IP列表，每个IP用逗号(,)隔开。")
 	cf.IntListVar(&AgeRange, "AGE_RANGE", []int{3, 6}, "年龄范围", "填写2个正整数,中间用逗号,隔开")
-	cf.Parse()
+	cf.Parse(false)
 }
 
 func getEnvFile() string {

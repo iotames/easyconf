@@ -33,7 +33,7 @@ cf = easyconf.NewConf("myconf.env")
 cf = easyconf.NewConf(".env", "common.env", "default.env")
 ```
 
-使用 `Parse()` 方法读取文件中的配置值。若文件不存在，则创建。
+使用 `Parse(fale)` 方法读取文件中的配置值。若文件不存在，则创建。
 
 ```
 var DbHost string
@@ -41,7 +41,7 @@ var DbPort int
 cf := easyconf.NewConf()
 cf.StringVar(&DbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
 cf.IntVar(&DbPort, "DB_PORT", 3306, "数据库地址端口号")
-cf.Parse() // 默认创建 .env, default.env 两份文件。
+cf.Parse(false) // 默认创建 .env, default.env 两份文件。
 ```
 
 ## 更新配置
@@ -52,7 +52,7 @@ cf.Parse() // 默认创建 .env, default.env 两份文件。
 cf := easyconf.NewConf(".env")
 var DbHost string
 cf.StringVar(&DbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
-cf.Parse()
+cf.Parse(false)
 
 DbHost = "192.168.1.6"
 
@@ -116,7 +116,7 @@ func init() {
 	cf.BoolVar(&DbEnable, "DB_ENABLE", false, "是否启用数据库")
 	cf.StringListVar(&AllowIPs, "ALLOW_IP_LIST", []string{"192.168.1.6", "192.168.2.8"}, "允许访问的IP列表，每个IP用逗号(,)隔开。")
 	cf.IntListVar(&AgeRange, "AGE_RANGE", []int{3, 6}, "年龄范围", "填写2个正整数,中间用逗号,隔开")
-	cf.Parse()
+	cf.Parse(false)
 }
 
 func getEnvFile() string {

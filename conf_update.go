@@ -35,6 +35,7 @@ func (cf *Conf) setItemVar(k, v string) error {
 
 // SetValuesByCmdArgs 从命令行参数获取配置。优先级高
 // 允许设置值为空字符串。
+// TODO 对于bool类型的参数解析可能会有BUG
 func (cf *Conf) SetValuesByCmdArgs() []error {
 	for _, item := range cf.items {
 		// 注释语句 Name 为空字符

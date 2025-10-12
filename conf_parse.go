@@ -8,8 +8,10 @@ import (
 	"github.com/iotames/miniutils"
 )
 
-// Parse 从配置文件和系统环境变量解析配置
-func (cf *Conf) Parse() error {
+// Parse 从配置文件和系统环境变量解析配置。
+// 如flagParse为true，还会从命令行参数解析配置。但会和原生的flag.Parse()冲突。
+// 其他地方还有调用flag.Parse()的代码，应删除，由本方法统一调用。
+func (cf *Conf) Parse(flagParse bool) error {
 	var err error
 	cf.kvmp = make(map[string]*string, len(cf.items))
 	for _, file := range cf.files {
@@ -22,36 +24,40 @@ func (cf *Conf) Parse() error {
 		}
 	}
 
+	// 1. 从环境变量配置文件读取配置，优先级低。
 	filenum := len(cf.files)
 	lasti := filenum - 1
 	for i := 0; i < filenum; i++ {
 		readfile := cf.files[lasti-i]
-		// 按顺序，后面的文件配置，覆盖前面的文件配置
+		// 按顺序，后面的文件配置，覆盖前面的文件配置。越后面的配置文件优先级越高。
 		cf.SetValuesByEnvFile(readfile)
 	}
 
-	// 从系统环境变量获取配置，配置文件上的同名配置会被覆盖
+	// 2. 从系统环境变量获取配置，配置文件上的同名配置会被覆盖。优先级中。
 	err = cf.SetValuesByEnv()
 	if err != nil {
 		return err
 	}
 
-	// 命令行参数优先级最高。
-	errs := cf.SetValuesByCmdArgs()
-	var errstr []string
-	for _, err := range errs {
-		if err != nil {
-			errstr = append(errstr, err.Error())
+	if flagParse {
+		// 3. 从命令行参数读取配置。优先级最高。
+		errs := cf.SetValuesByCmdArgs()
+		var errstr []string
+		for _, err := range errs {
+			if err != nil {
+				errstr = append(errstr, err.Error())
+			}
 		}
-	}
-	if len(errstr) > 0 {
-		return fmt.Errorf("命令行参数解析错误:%s", strings.Join(errstr, ";"))
+		if len(errstr) > 0 {
+			return fmt.Errorf("命令行参数解析错误:%s", strings.Join(errstr, ";"))
+		}
 	}
 	return nil
 }
 
 var seps []string = []string{`"`, `'`}
 
+// GetConfStrByLine 从单行字符串中提取配置项的键值对字符串
 func GetConfStrByLine(line string) (itemk, itemv string) {
 	remarkk := "#"
 	v := strings.TrimSpace(line)
