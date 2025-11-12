@@ -116,7 +116,7 @@ func (cf *Conf) SetValuesByEnvFile(envfile string) {
 		if itemk == "" || itemv == "" {
 			continue
 		}
-		// fmt.Printf("-----ReadFile(%s)-----k(%s)--v(%s)--------\n", readfile, itemk, itemv)
+		// fmt.Printf("-----ReadFile(%s)-----k(%s)=v(%s)--------\n", envfile, itemk, itemv)
 		cf.setItemVar(itemk, itemv)
 	}
 }

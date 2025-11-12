@@ -9,8 +9,11 @@ import (
 )
 
 // Parse 从配置文件和系统环境变量解析配置。
+//
 // 如flagParse为true，还会从命令行参数解析配置。但会和原生的flag.Parse()冲突。
 // 其他地方还有调用flag.Parse()的代码，应删除，由本方法统一调用。
+//
+// 配置优先级：命令行参数 > 系统环境变量 > 配置文件列表（按顺序，优先级依次降低）
 func (cf *Conf) Parse(flagParse bool) error {
 	var err error
 	for _, file := range cf.files {
@@ -26,9 +29,11 @@ func (cf *Conf) Parse(flagParse bool) error {
 	// 1. 从环境变量配置文件读取配置，优先级低。
 	filenum := len(cf.files)
 	lasti := filenum - 1
+	// 对配置文件列表倒序读取：前面文件的配置值，会覆盖后面文件的配置值。故排后的配置文件，优先级逐级递减。
 	for i := 0; i < filenum; i++ {
+		// lasti-i 为文件序号。从末尾的最后一个配置文件开始，依次读取到前面第一个配置文件。
+		// 因为是逆序读取，故配置文件逐级覆盖之后，越前面的配置文件，优先级越高。
 		readfile := cf.files[lasti-i]
-		// 按顺序，后面的文件配置，覆盖前面的文件配置。越后面的配置文件优先级越高。
 		cf.SetValuesByEnvFile(readfile)
 	}
 
