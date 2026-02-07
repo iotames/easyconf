@@ -20,12 +20,12 @@ func (cf *Conf) Parse(flagParse bool) error {
 		if !miniutils.IsPathExists(file) {
 			err = createEnvFile(file, cf.DefaultString())
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("create file(%s)err(%v)", file, err)
 			}
 			// fmt.Printf("Create file %s SUCCESS\n", file)
 		}
 	}
-
+	errStrList := []string{}
 	// 1. 从环境变量配置文件读取配置，优先级低。
 	filenum := len(cf.files)
 	lasti := filenum - 1
@@ -34,7 +34,14 @@ func (cf *Conf) Parse(flagParse bool) error {
 		// lasti-i 为文件序号。从末尾的最后一个配置文件开始，依次读取到前面第一个配置文件。
 		// 因为是逆序读取，故配置文件逐级覆盖之后，越前面的配置文件，优先级越高。
 		readfile := cf.files[lasti-i]
-		cf.SetValuesByEnvFile(readfile)
+		err = cf.SetValuesByEnvFile(readfile)
+		if err != nil {
+			errStrList = append(errStrList, fmt.Sprintf("parse file(%s) err:%s", readfile, err.Error()))
+		}
+	}
+
+	if len(errStrList) > 0 {
+		return fmt.Errorf("env文件解析错误:%s", strings.Join(errStrList, ";"))
 	}
 
 	// 2. 从系统环境变量获取配置，配置文件上的同名配置会被覆盖。优先级中。

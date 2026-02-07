@@ -103,22 +103,30 @@ func (cf *Conf) SetValuesByEnv() error {
 
 // SetValuesByEnvFile 从env配置文件更新配置项。优先级低。
 // 配置值为空字符串会被忽略
-func (cf *Conf) SetValuesByEnvFile(envfile string) {
+func (cf *Conf) SetValuesByEnvFile(envfile string) error {
 	content, err := os.ReadFile(envfile)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	contstr := string(content)
 	lines := strings.Split(contstr, "\n")
 	// 解析env文件的每一行
+	errStrList := []string{}
 	for _, line := range lines {
 		itemk, itemv := GetConfStrByLine(line)
 		if itemk == "" || itemv == "" {
 			continue
 		}
 		// fmt.Printf("-----ReadFile(%s)-----k(%s)=v(%s)--------\n", envfile, itemk, itemv)
-		cf.setItemVar(itemk, itemv)
+		err = cf.setItemVar(itemk, itemv)
+		if err != nil {
+			errStrList = append(errStrList, err.Error())
+		}
 	}
+	if len(errStrList) > 0 {
+		return fmt.Errorf("env文件(%s)解析错误(SetValuesByEnvFile error):%s", envfile, strings.Join(errStrList, ";"))
+	}
+	return nil
 }
 
 func (cf *Conf) UpdateFile(fpath string) error {
