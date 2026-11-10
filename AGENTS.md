@@ -58,6 +58,7 @@ Parse(flagParse bool)
 | `conf_parse.go` | `Parse()` 主流程、`GetConfStrByLine()` 行解析器 |
 | `conf_update.go` | `addItem()`、`setItemVar()`、`SetValuesByEnvFile()`、`SetValuesByEnv()`、`SetValuesByCmdArgs()`、`UpdateFile()`、`AddComment()` |
 | `jsonfile.go` | 独立的 `JsonConf` 类型，提供 JSON 文件的读写（与 `Conf` 无关） |
+| `atomicfile.go` | `writeFileAtomic()` 原子写（临时文件 + rename + 目录 fsync），`UpdateFile` 与 `JsonConf.Save` 共用 |
 | `conf_test.go` | 行解析测试 + 完整读写更新流程测试 |
 
 ## 关键约定与注意事项
@@ -68,6 +69,14 @@ Parse(flagParse bool)
 - `#` 开头的行是注释
 - 值可以用单引号或双引号包裹，内部含 `#` 时会被正确处理
 - 列表类型（`StringListVar`/`IntListVar`）的值用逗号分隔，如 `AGE_RANGE = 3,6`
+
+### 写回约定（`UpdateFile` / `JsonConf.Save`）
+
+- **原子写**：同目录临时文件 → `fsync` → rename 替换；POSIX 上再 `fsync` 父目录。两者共用 `writeFileAtomic()`。
+- **权限**：已有文件沿用原权限，新建文件 `0644`。
+- **写前自检**：每一行都要能被 `GetConfStrByLine()` 原样读回；取值含 `#`/引号时自动补引号，无法表达的取值报错且不改动原文件。校验对象是拼好的整行（含保留的行内注释）。
+- **不回显取值**：错误信息只报键名与原因，取值可能含口令/DSN。
+- 重建行的缩进与等号两侧间距会被归一化；无法识别的尾随内容（非 `#` 注释）会被丢弃。
 
 ### 配置优先级实现细节
 

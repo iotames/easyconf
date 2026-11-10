@@ -43,6 +43,17 @@ func TestConfLine(t *testing.T) {
 	}
 }
 
+// TestConfLineSingleQuoteValue 覆盖取值只有一个引号字符的边界：
+// 旧实现会执行 itemv[1:0] 并 panic，这里必须原样返回该字符。
+func TestConfLineSingleQuoteValue(t *testing.T) {
+	for _, want := range []string{`'`, `"`} {
+		k, v := GetConfStrByLine("KEY = " + want)
+		if k != "KEY" || v != want {
+			t.Fatalf("取值 %q 应原样解析，实际 key=%q value=%q", want, k, v)
+		}
+	}
+}
+
 // TestConf 测试配置的完整生命周期：默认值创建 → Parse 解析 → UpdateFile 更新写入 → 重新 Parse 验证持久化。
 func TestConf(t *testing.T) {
 	cf := NewConf()

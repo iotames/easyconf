@@ -91,7 +91,9 @@ func GetConfStrByLine(line string) (itemk, itemv string) {
 
 		// 配置值使用双引号 " 或单引号 ' 包裹，则提取出来。
 		for _, sep := range seps {
-			if strings.Index(itemv, sep) == 0 && itemv[len(itemv)-1] == sep[0] {
+			// len(itemv) > 1 必须保留：取值只有一个引号字符（如 KEY = '）时，
+			// itemv[1:len-1] 会变成 [1:0] 并 panic。单引号本身是合法取值，原样保留。
+			if len(itemv) > 1 && itemv[0] == sep[0] && itemv[len(itemv)-1] == sep[0] {
 				itemv = itemv[1 : len(itemv)-1]
 
 				// 解决不适配 name="value" # remark="a=b"

@@ -2,6 +2,8 @@ package easyconf
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -243,6 +245,242 @@ func TestUpdateFileEmptyFile(t *testing.T) {
 	}
 	if !strings.Contains(contentStr, "# 数据库地址端口号") {
 		t.Fatal("空文件更新后应包含 DB_PORT 标题注释")
+	}
+}
+
+// TestUpdateFileValueRoundTrip 验证 UpdateFile 写出的取值能被本库解析器原样读回。
+//
+// 这是本格式的硬规矩：值里的 # 在裸写时会被当成行内注释截断，含首尾空格的值会被裁掉，
+// 所以写方必须按需补引号（与 MySQL option file 的约定一致）。
+// 用例覆盖：含 # 的值、空值行、原本带引号、含空格、含引号的值。
+func TestUpdateFileValueRoundTrip(t *testing.T) {
+	cases := []struct {
+		name   string
+		origin string
+		value  string
+		wantIn string
+	}{
+		{"空值行写入含#的值", "KEY = \n", "a#b", `"a#b"`},
+		{"裸写行写入含#的值", "KEY = old\n", "a#b", `"a#b"`},
+		{"原带引号写入含#的值", "KEY = \"old\"\n", "a#b", `"a#b"`},
+		{"含#且以#开头", "KEY = \n", "#abc", `"#abc"`},
+		{"含#的DSN", "KEY = \n", "postgres://u:p#ss@h:5432/db", `"postgres://u:p#ss@h:5432/db"`},
+		{"普通值保持裸写", "KEY = old\n", "10.0.0.1", "10.0.0.1"},
+		{"值内空格无需引号", "KEY = \n", "a b", "a b"},
+		{"值内引号无需引号", "KEY = \n", `a"b`, `a"b`},
+		// 单个引号曾触发解析器 panic（itemv[1:0]），必须能正常写回
+		{"取值只有单引号", "KEY = \n", "'", "'"},
+		{"取值只有双引号", "KEY = \n", `"`, `"`},
+		// 校验必须针对整行：注释结尾的引号会改变解析结果，需改用另一种引号包裹
+		{"取值以引号开头且注释以引号结尾", "KEY = old # x\"\n", `"abc`, `'"abc'`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "roundtrip.env")
+			if err := os.WriteFile(path, []byte(tc.origin), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			cf := NewConf(path)
+			var key string
+			cf.StringVar(&key, "KEY", "", "")
+			if err := cf.Parse(false); err != nil {
+				t.Fatal(err)
+			}
+			if err := cf.SetItemValue("KEY", tc.value); err != nil {
+				t.Fatal(err)
+			}
+			if err := cf.UpdateFile(path); err != nil {
+				t.Fatalf("写回含特殊字符的取值不应报错: %v", err)
+			}
+
+			content, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var line string
+			for _, l := range strings.Split(string(content), "\n") {
+				if strings.HasPrefix(strings.TrimSpace(l), "KEY") {
+					line = strings.TrimSpace(l)
+					break
+				}
+			}
+			if !strings.Contains(line, tc.wantIn) {
+				t.Fatalf("落盘行应为 %q，实际 %q", tc.wantIn, line)
+			}
+
+			// 关键断言：新实例重新读文件，取值必须与写入前完全一致
+			cf2 := NewConf(path)
+			var key2 string
+			cf2.StringVar(&key2, "KEY", "", "")
+			if err := cf2.Parse(false); err != nil {
+				t.Fatal(err)
+			}
+			if err := cf2.SetValuesByEnvFile(path); err != nil {
+				t.Fatal(err)
+			}
+			if key2 != tc.value {
+				t.Fatalf("重启后取值应原样为 %q，实际 %q（落盘行 %q）", tc.value, key2, line)
+			}
+		})
+	}
+}
+
+// TestSetItemValueTrimsWhitespace 验证取值两端空白在写入时就被裁掉，
+// 因此写盘环节不会遇到「首尾空格被读回时裁掉」的情况。
+func TestSetItemValueTrimsWhitespace(t *testing.T) {
+	const testFile = "test_trim_whitespace.env"
+	defer os.Remove(testFile)
+
+	cf := NewConf(testFile)
+	var key string
+	cf.StringVar(&key, "KEY", "", "")
+	if err := cf.Parse(false); err != nil {
+		t.Fatal(err)
+	}
+	if err := cf.SetItemValue("KEY", "  a b  "); err != nil {
+		t.Fatal(err)
+	}
+	if key != "a b" {
+		t.Fatalf("取值两端空白应被裁掉，实际 %q", key)
+	}
+	if err := cf.UpdateFile(testFile); err != nil {
+		t.Fatal(err)
+	}
+	content, _ := os.ReadFile(testFile)
+	// 新建的键走追加路径，字符串取值按既有约定带引号（与 MySQL option file 一致）
+	if !strings.Contains(string(content), `KEY = "a b"`) {
+		t.Fatalf("落盘应为裁过空白的值，实际:\n%s", content)
+	}
+}
+
+// 不把读不回来的值写进文件（写方与读方必须自洽）。
+func TestUpdateFileRejectUnrepresentableValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.env")
+	if err := os.WriteFile(path, []byte("KEY = \n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cf := NewConf(path)
+	var key string
+	cf.StringVar(&key, "KEY", "", "")
+	if err := cf.Parse(false); err != nil {
+		t.Fatal(err)
+	}
+	// 同时含 # 与两种引号：这种值在本格式里无法表达
+	if err := cf.SetItemValue("KEY", "a#b\"c'd"); err != nil {
+		t.Fatal(err)
+	}
+	err := cf.UpdateFile(path)
+	if err == nil {
+		t.Fatal("无法表达的取值应报错，而不是写进文件")
+	}
+	// 错误信息会进入接口响应与日志，不得回显取值（可能含口令/DSN）
+	if strings.Contains(err.Error(), `a#b`) {
+		t.Fatalf("错误信息不应回显配置取值，实际: %v", err)
+	}
+
+	// 报错后原文件保持不变，不留半截
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), "a#b") {
+		t.Fatalf("写失败不应改动原文件，实际内容:\n%s", content)
+	}
+}
+
+// 写完后目录里不留临时文件，原文件权限被沿用，内容完整。
+func TestUpdateFileAtomicWrite(t *testing.T) {
+	const testFile = "test_atomic_write.env"
+	originalContent := `DB_HOST = 127.0.0.1
+DB_PORT = 3306
+`
+	if err := os.WriteFile(testFile, []byte(originalContent), 0640); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(testFile)
+
+	cf := NewConf(testFile)
+	var dbHost string
+	var dbPort int
+	cf.StringVar(&dbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
+	cf.IntVar(&dbPort, "DB_PORT", 3306, "数据库地址端口号")
+
+	if err := cf.Parse(false); err != nil {
+		t.Fatal(err)
+	}
+	dbHost = "10.0.0.1"
+	dbPort = 5432
+	if err := cf.UpdateFile(testFile); err != nil {
+		t.Fatal(err)
+	}
+
+	// 不应留下临时文件
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		// 临时文件名为 .<目标文件名>.tmp-<随机串>，与 JsonConf.Save 共用同一实现
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Fatalf("写盘后不应残留临时文件，实际存在: %s", e.Name())
+		}
+	}
+
+	// 原文件权限被沿用，不被改成默认值
+	// Windows 的 os.Chmod 只支持只读位，没有 POSIX 权限位，权限断言只在类 Unix 平台生效。
+	if runtime.GOOS != "windows" {
+		st, err := os.Stat(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0640 {
+			t.Fatalf("应沿用原文件权限 0640，实际 %v", st.Mode().Perm())
+		}
+	}
+
+	// 内容完整
+	content, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "DB_HOST = 10.0.0.1") ||
+		!strings.Contains(string(content), "DB_PORT = 5432") {
+		t.Fatalf("写盘后内容应完整，实际内容:\n%s", content)
+	}
+}
+
+// TestUpdateFileNewFileMode 验证新建的配置文件权限为 0644，且内容写入完整。
+func TestUpdateFileNewFileMode(t *testing.T) {
+	const testFile = "test_new_file_mode.env"
+	os.Remove(testFile)
+	defer os.Remove(testFile)
+
+	cf := NewConf(testFile)
+	var dbHost string
+	cf.StringVar(&dbHost, "DB_HOST", "127.0.0.1", "数据库主机地址")
+
+	if err := cf.UpdateFile(testFile); err != nil {
+		t.Fatal(err)
+	}
+
+	// 新建文件权限为 0644（Windows 无 POSIX 权限位，断言只在类 Unix 平台生效）
+	if runtime.GOOS != "windows" {
+		st, err := os.Stat(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0644 {
+			t.Fatalf("新建配置文件权限应为 0644，实际 %v", st.Mode().Perm())
+		}
+	}
+	content, _ := os.ReadFile(testFile)
+	if !strings.Contains(string(content), "DB_HOST") {
+		t.Fatalf("新建文件应写入配置项，实际内容:\n%s", content)
 	}
 }
 
@@ -583,4 +821,3 @@ func TestUpdateByMapEdgeCases(t *testing.T) {
 		t.Fatalf("空 map 后 DB_HOST 不应变化，实际为 %s", dbHost)
 	}
 }
-
